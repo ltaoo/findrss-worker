@@ -25,7 +25,7 @@ test('real Workers D1/KV/Queue and WS-only DO application', {
   await writeFile(entry, `
     import { Application } from ${JSON.stringify(join(root, 'server/application.js'))};
     import application from ${JSON.stringify(join(root, 'index.js'))};
-    export { RealtimeHubDO, ApplicationEntrypoint } from ${JSON.stringify(join(root, 'index.js'))};
+    export { RealtimeHubDO, APIDurableObject, ApplicationEntrypoint } from ${JSON.stringify(join(root, 'index.js'))};
     export default { ...application, async fetch(request,env,ctx) {
       if(new URL(request.url).pathname==='/_smoke/consume') {
         const jobs=await env.DB.prepare("SELECT id FROM jobs WHERE status='queued'").all();

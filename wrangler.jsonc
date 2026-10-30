@@ -1,6 +1,11 @@
 {
   "$schema": "https://raw.githubusercontent.com/cloudflare/workers-sdk/main/packages/wrangler/config-schema.json",
-  "name": "findrss-worker",
+  "name": "findrss-worker-example",
+  "account_id": "13ca31f4970253df1202e534bf8309be",
+  "vars": {
+    "CLOUDFLARE_ACCOUNT_ID": "13ca31f4970253df1202e534bf8309be",
+    "CLOUDFLARE_WORKER_NAME": "findrss-worker-example"
+  },
   "main": "index.js",
   "assets": {
     "directory": "./dist/assets",
@@ -80,15 +85,18 @@
       "bucket_name": "findrss-storage"
     }
   ],
-  "d1_databases": [{ "binding": "DB", "database_name": "findrss-db", "database_id": "00000000-0000-0000-0000-000000000000", "migrations_dir": "migrations" }],
-  "kv_namespaces": [{ "binding": "CACHE", "id": "00000000000000000000000000000000" }],
+  "d1_databases": [{ "binding": "DB", "database_name": "findrss-db", "database_id": "82c74e18-9e2b-4fb6-843e-753ed0ab60f1", "migrations_dir": "migrations" }],
+  "kv_namespaces": [{ "binding": "CACHE", "id": "8f43a430c17a4cd5999ed68c0a9314e6" }],
   "queues": {
     "producers": [{ "binding": "JOBS", "queue": "findrss-jobs" }],
     "consumers": [{ "queue": "findrss-jobs", "max_batch_size": 1, "max_concurrency": 16, "max_retries": 10 }]
   },
-  "services": [{ "binding": "APPLICATION_SERVICE", "service": "findrss-worker", "entrypoint": "ApplicationEntrypoint" }],
+  "services": [{ "binding": "APPLICATION_SERVICE", "service": "findrss-worker-example", "entrypoint": "ApplicationEntrypoint" }],
   "durable_objects": { "bindings": [{ "name": "REALTIME", "class_name": "RealtimeHubDO" }] },
-  "exports": { "RealtimeHubDO": { "type": "durable-object", "storage": "sqlite" } },
+  "exports": {
+    "RealtimeHubDO": { "type": "durable-object", "storage": "sqlite" },
+    "APIDurableObject": { "type": "durable-object", "storage": "sqlite" }
+  },
   "secrets": {
     "required": [
       "ADMIN_PASSWORD"

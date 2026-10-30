@@ -6,6 +6,19 @@ register('./support/application_hook.js', import.meta.url);
 const {
   RealtimeHubDO
 } = await import('../server/infra/realtime_do.js');
+const { APIDurableObject } = await import('../server/durable_object.js');
+test('旧 DO 保留命名空间，待执行 Alarm 不访问存储或继续执行业务', async () => {
+  const legacy = new APIDurableObject({
+    get storage() {
+      assert.fail('Legacy alarms must not access storage');
+    }
+  }, {
+    get APPLICATION_SERVICE() {
+      assert.fail('Legacy alarms must not run application jobs');
+    }
+  });
+  await legacy.alarm();
+});
 function fixture(service = {}) {
   const pending = [],
     sent = [];

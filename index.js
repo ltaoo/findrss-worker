@@ -3,7 +3,7 @@ import { handle_admin_request } from "./admin.js";
 import { handle_discovery_request } from "./discover.js";
 import { handle_rank_request, enqueue_rank_snapshot } from "./rank.js";
 import { create_worker } from "./router.js";
-export { RealtimeHubDO } from "./server/durable_object.js";
+export { RealtimeHubDO, APIDurableObject } from "./server/durable_object.js";
 export { ApplicationEntrypoint } from "./server/application.js";
 import { Application } from "./server/application.js";
 const website = create_worker({

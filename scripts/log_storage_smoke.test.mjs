@@ -22,7 +22,7 @@ test("真实 Worker 输出托管日志且 D1 写入为零，R2 仅保存小状�
   });
   const contents = `
     import { Application } from ${JSON.stringify(join(root, "server/application.js"))};
-    export { RealtimeHubDO, ApplicationEntrypoint } from ${JSON.stringify(join(root, "index.js"))};
+    export { RealtimeHubDO, APIDurableObject, ApplicationEntrypoint } from ${JSON.stringify(join(root, "index.js"))};
     import { RepositoryWorkersLogs } from ${JSON.stringify(join(root, "server/repository/workers_logs.js"))};
     import { WorkersLogs } from ${JSON.stringify(join(root, "server/infra/workers_logs.js"))};
     import { RepositoryDevice } from ${JSON.stringify(join(root, "server/repository/device.js"))};
