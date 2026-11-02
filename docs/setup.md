@@ -177,6 +177,8 @@ export const route = {
 
 运行 Debug 检查结果，以 `1.0.0` 发布正式版本并启用脚本，然后在「订阅源」添加 `{{hostname}}/rss/demo/go-blog`。同一路由也可通过 `/atom/demo/go-blog` 获取 Atom。
 
+从 [findrss-scripts](https://github.com/ltaoo/findrss-scripts) 复制的脚本会通过 `import { RSSScript, HotRankScript, ClipScript, DetectScript, Result } from "@findrss/core";` 导入基类和 Result，当前沙箱同样支持；全局 `RSSScript`、`Result` 与模块导入指向同一对象，两种写法可混用。
+
 RSS / Atom 默认需要访问 Token，可通过 `?token=`、`Authorization: Bearer` 或 `X-FindRSS-Token` 提供。在启用中的自有订阅源上关闭「需要 token 访问」后，该路由公开。公开性按路由 pathname 判断，忽略 query，并对 RSS / Atom 两种前缀同时生效。
 
 需要 JavaScript 渲染的页面使用 `ctx.puppeteer.navigate(url, options?, evaluate?)`，返回 `Promise<Result>`。省略 `evaluate` 时返回 `{ html }`；提供函数时返回函数在页面内的执行结果。函数不能引用脚本闭包中的变量，使用 `options.args` 传参：

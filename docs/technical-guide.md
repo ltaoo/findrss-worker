@@ -156,7 +156,7 @@ npm run deploy
 
 `GET|PUT /admin/api/scripts/agent/settings` 管理模型目录与密钥；`POST /admin/api/scripts/agent/test` 可在保存前使用草稿地址、参数和临时密钥测试连接；旧单模型配置自动转为默认厂商，保存目录时保留加密密钥。Workers AI 仅在部署注入 `AI` 绑定时可用；`GET /admin/api/scripts/agent/ws` 在当前管理员会话下传送流式回答、草稿修改和 Debug 结果。模型修改通过沙箱编译校验后立即更新左侧草稿，按版本拒绝过期结果；手动改代码或调试链接、停止对话或关闭表单都会取消当前运行。对话仅修改当前未保存草稿，不自动保存、发布或切换其他脚本。会话历史仅保留在当前编辑工作区，重新打开表单或刷新页面后开始新对话。单次运行最多 8 轮工具调用、3 分钟，WebSocket Hub 最多同时转发 4 轮对话。
 
-全局 XiaoxunAgent 与脚本助手 XiaoxunScriptAgent 每轮模型调用均注入同一份 [脚本 SDK 知识](../server/lib/script_agent_runtime_knowledge.js) 和 [feed JSON → XML 知识](../server/lib/script_agent_feed_knowledge.js)。SDK 知识覆盖 `@findrss/util` 各工具的签名和返回值、Result/parseJSON、RSSScript/HotRankScript、显式 Cookie 授权、日志与草稿发布约定，并包含经过真实 QuickJS 执行验证的 RSS、热榜和 Cookie 示例；共享知识不增加助手的操作权限。feed 知识说明顶层字段对应 RSS `channel`、`items` 数组对应 `item`，并列出 Atom 映射、字段类型、时间回退、HTML 转义、图片/多图/附件/动态照片格式及完整示例。RSS/Atom 订阅脚本必须直接返回含 `items` 数组的 feed 对象，不能再包 `channel` 或预先转为 XML/JSON 字符串；不支持的原生 RSS 字段名不会自动映射。`HotRankScript` 的普通路由返回榜单快照，不适用这份 XML 输出规则。示例由测试交给真实 `FeedModel` 渲染并解析验证，助手运行测试同时检查每轮请求携带这份知识。
+全局 XiaoxunAgent 与脚本助手 XiaoxunScriptAgent 每轮模型调用均注入同一份 [脚本 SDK 知识](../server/lib/script_agent_runtime_knowledge.js) 和 [feed JSON → XML 知识](../server/lib/script_agent_feed_knowledge.js)。SDK 知识覆盖 `@findrss/util` 各工具的签名和返回值、`@findrss/core` 的基类/Result 导入、Result/parseJSON、显式 Cookie 授权、日志与草稿发布约定，并包含经过真实 QuickJS 执行验证的 RSS、热榜和 Cookie 示例；共享知识不增加助手的操作权限。feed 知识说明顶层字段对应 RSS `channel`、`items` 数组对应 `item`，并列出 Atom 映射、字段类型、时间回退、HTML 转义、图片/多图/附件/动态照片格式及完整示例。RSS/Atom 订阅脚本必须直接返回含 `items` 数组的 feed 对象，不能再包 `channel` 或预先转为 XML/JSON 字符串；不支持的原生 RSS 字段名不会自动映射。`HotRankScript` 的普通路由返回榜单快照，不适用这份 XML 输出规则。示例由测试交给真实 `FeedModel` 渲染并解析验证，助手运行测试同时检查每轮请求携带这份知识。
 
 管理后台所有页面右下角提供「小讯」全局对话入口，提供对话框、输入框和左下模型选择，与脚本助手共用大模型配置和加密密钥。`GET /admin/api/agent/ws` 仍需管理员会话，并拒绝跨站 Origin。每次发送携带当前管理路由和页面上下文；切换路由取消当前运行并清空上一页历史，对话窗口保持打开。上下文包含页面用途；Cookie 页只提供域名和数量，不提供密钥值。脚本页仍使用三栏编辑器中的助手实时改草稿和 Debug。
 
@@ -264,7 +264,7 @@ export const route = {
 
 ## 内置工具模块
 
-脚本通过 `import { utils } from '@findrss/util';` 使用公共工具，源码集中在 [script_util.js](../server/infra/script_util.js)。该虚拟 ES 模块在 QuickJS 编译、后台调试和正式执行时可用，无需安装 npm 包；模块加载仅允许这个名称，不读取宿主文件或下载代码。`utils` 是冻结的无状态对象，不提供原示例中的 `source`、`main`。
+脚本通过 `import { utils } from '@findrss/util';` 使用公共工具，源码集中在 [script_util.js](../server/infra/script_util.js)。该虚拟 ES 模块在 QuickJS 编译、后台调试和正式执行时可用，无需安装 npm 包；模块加载只允许 `@findrss/util` 和 `@findrss/core` 两个名称，不读取宿主文件或下载代码。`utils` 是冻结的无状态对象，不提供原示例中的 `source`、`main`。
 
 ```js
 import { utils } from '@findrss/util';
@@ -309,7 +309,7 @@ Bilibili RSS 示例已显式选用 TCP，网页 API、Cookie、WBI 签名及分�
 
 ## 内置脚本基类
 
-QuickJS 在编译、调试、Mock 测试和正式执行前将 `RSSScript`、`HotRankScript` 注入全局，脚本可直接通过 `class WechatChannelsRSS extends RSSScript {}` 或 `class BaiduHotRank extends HotRankScript {}` 继承，无需 import 或复制基类。子类实现 `async fetch(ctx)` 返回 Result，路由的 `handler` 返回实例的 `run(ctx)` 结果；每次执行使用独立沙箱，修改基类不会影响其它脚本。
+QuickJS 在编译、调试、Mock 测试和正式执行前将 `RSSScript`、`HotRankScript`、`ClipScript`、`DetectScript` 和 `Result` 注入全局，脚本可直接通过 `class WechatChannelsRSS extends RSSScript {}` 或 `class BaiduHotRank extends HotRankScript {}` 继承，无需 import 或复制基类。也可以从虚拟模块 `@findrss/core` 命名导入：`import { RSSScript, HotRankScript, ClipScript, DetectScript, Result } from '@findrss/core';`，导入对象与全局绑定相同，适合沿用 [findrss-scripts](https://github.com/ltaoo/findrss-scripts) 的脚本写法。子类实现 `async fetch(ctx)` 返回 Result，路由的 `handler` 返回实例的 `run(ctx)` 结果；每次执行使用独立沙箱，修改基类不会影响其它脚本。
 
 `RSSScript` 校验 feed 和条目，归一化真实发布时间、按发布时间倒序排列并按稳定 ID 去重，返回可用于 `/rss`、`/atom` 的 feed JSON。缺失发布时间不使用采集时间补齐。条目的多图、动态照片、附件、媒体类型和 `extra` 字段会保留，源的 `id`、`extra` 与真实 `updated` 也会保留。
 

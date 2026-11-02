@@ -24,7 +24,7 @@ import { normalize_clip_snapshot } from "./clip_html.js";
 import { ClipModel } from "../domain/clip.js";
 import { compare_detect_snapshots, normalize_detect_snapshot, normalize_detect_previous, normalize_detect_result, DETECT_RESULT_BYTES } from "../lib/detect.js";
 import { RssRoutePatternModel } from "../domain/rss_route.js";
-import { SCRIPT_LOG_MAX_LINES, SCRIPT_DEBUG_LOG_MAX_BYTES, script_error_source, script_ctx_source, script_mock_source, script_result_source, script_metadata_source } from "./script_sources.js";
+import { SCRIPT_LOG_MAX_LINES, SCRIPT_DEBUG_LOG_MAX_BYTES, script_error_source, script_ctx_source, script_mock_source, script_result_source, script_metadata_source, script_core_source } from "./script_sources.js";
 import { script_result_helpers_source } from "./script_result.js";
 import { script_classes_source } from "./script_classes.js";
 import { script_util_source } from "./script_util.js";
@@ -42,7 +42,7 @@ const quickjs_variant = newVariant(RELEASE_ASYNCIFY, {
   wasmModule: quickjs_wasm_module
 });
 function inject_script_globals(vm) {
-  vm.runtime.setModuleLoader(name => name === "@findrss/util" ? script_util_source() : {
+  vm.runtime.setModuleLoader(name => name === "@findrss/util" ? script_util_source() : name === "@findrss/core" ? script_core_source() : {
     error: new Error("脚本不支持导入模块：" + name)
   });
   const result = vm.evalCode(script_result_helpers_source() + "\n" + script_classes_source(), "script-globals.js");

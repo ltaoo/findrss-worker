@@ -18,6 +18,17 @@ export const SCRIPT_DEBUG_LOG_MAX_BYTES = 4 * 1024 * 1024;
 /** 对象序列化的深度上限，超过即输出占位文本。 */
 export const SCRIPT_LOG_MAX_DEPTH = 6;
 
+/**
+ * `@findrss/core` 虚拟模块的源码：把内置基类与 Result 以命名导出的形式
+ * 提供给 `import { RSSScript, Result } from "@findrss/core";`。
+ * 全局绑定继续保留，兼容直接使用 `RSSScript` / `Result` 的旧脚本。
+ * @returns {string}
+ */
+export function script_core_source() {
+  return ["RSSScript", "HotRankScript", "ClipScript", "DetectScript", "Result"]
+    .map(name => "export const " + name + " = globalThis." + name + ";").join("\n");
+}
+
 /** 超限提示只追加一次，与行数/字节上限共享同一段文本。 */
 const LOG_TRUNCATED_TEXT = "日志超过上限（" +
   SCRIPT_LOG_MAX_LINES + " 行 / " + Math.floor(SCRIPT_LOG_MAX_BYTES / 1024) + "KB），后续输出已省略";

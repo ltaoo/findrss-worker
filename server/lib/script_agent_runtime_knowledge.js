@@ -65,7 +65,7 @@ export const SCRIPT_AGENT_RUNTIME_KNOWLEDGE = `
 FindRSS Worker QuickJS 脚本 SDK 知识（编译、Mock 调试、真实 Debug 和正式执行共用）：
 
 一、全局对象与 Result
-全局已注入 RSSScript、HotRankScript、Result、BizError、parseJSON，不需要导入或复制定义。没有 console、DOM、Node.js 或原生 URL 对象。
+全局已注入 RSSScript、HotRankScript、Result、BizError、parseJSON，不需要导入或复制定义。也可用 ES 模块命名导入基类和 Result：\`import { RSSScript, HotRankScript, ClipScript, DetectScript, Result } from ${JSON.stringify("@findrss/core")};\`，导入对象与全局绑定相同，按脚本习惯二选一即可。没有 console、DOM、Node.js 或原生 URL 对象。
 Result.Ok(data) 返回 {data,error:null}；Result.Err(message,code?,data?) 返回 {data,code,error:BizError}，error 包含 message/messages/code/data。先检查 result.error，失败 return result，成功取 result.data；不能用 data 的真值判断成功（null/false/0 都可以是成功数据）。
 ctx.fetchText、ctx.invoke、ctx.cookies.get、ctx.puppeteer.navigate 返回 Promise<Result>；ctx.fail(code,message) 返回失败 Result，必须 return 才会中止当前 handler。基类 fetch/run/timestamp 也使用 Result；脚本自己的请求、解析和校验异常应转成 Result.Err，不用 throw 作为正常失败流程。
 parseJSON(text,reviver?) 返回 Result 并捕获语法和 reviver 错误。使用 parseJSON 或 utils.parseJSON，不直接 JSON.parse。纯字符串转换无需套 Result。
@@ -74,7 +74,7 @@ parseJSON(text,reviver?) 返回 Result 并捕获语法和 reviver 错误。使�
 脚本配置：模块可导出 config_schema（根 type:'object'、properties），卡片「配置」按 JSON Schema 生成表单，handler 通过 ctx.config 读取已保存配置和 default。多路由共用；编辑已保存脚本的 Debug/Mock 也读取保存值，新脚本只用默认值。支持 string/number/integer/boolean/object/array，title/description/default/enum/enumDescriptions/writeOnly、required/additionalProperties（布尔值）、minLength/maxLength/pattern/minimum/maximum/minItems/maxItems/items。object 需 properties、array 需 items；最多嵌套 8 层。不支持 $ref、组合或条件 Schema；不要生成这些关键字。配置保存不升级版本，改代码不会清空值；新增无默认值的必填项需管理员从卡片补填才能运行。writeOnly 仅遮挡输入，配置按脚本元数据保存；不要把真实密钥写进默认值或输出日志。
 
 二、公共工具模块
-脚本使用 ES 模块命名导入：\`import { utils } from ${JSON.stringify("@findrss/util")};\`。这是唯一可导入的内置模块，不是需安装的 npm 包；禁止宿主文件、其它包和网络模块。utils 是冻结的无状态对象，不提供 utils.source/main，通用工具优先复用，不重复声明。
+脚本使用 ES 模块命名导入：\`import { utils } from ${JSON.stringify("@findrss/util")};\`。可导入的内置模块只有 \`@findrss/util\` 和 \`@findrss/core\`，不是需安装的 npm 包；禁止宿主文件、其它包和网络模块。utils 是冻结的无状态对象，不提供 utils.source/main，通用工具优先复用，不重复声明。
 decode_html/decode_entities(value) → string：解码常见 HTML 实体和数字实体，非法码点保留原文。plain_text(value) → string：剔除 script/style 和标签、解码实体。escape_html(value) → string：将纯文本嵌入 HTML 片段时转义；不是 HTML 安全清洗器，也不是 XML 转义。直接给 feed 的 title/description/content 时不用整体 escape_html，XML 由渲染端处理。
 absolute_url(value,base) → Result<string>：拼接 HTTP(S) 地址，相对地址显式传 base；拒绝其它协议、用户凭据、非法字符，空值成功返回空串，必填链接仍须检查。
 timestamp(value) → Result<number|undefined>：秒/毫秒/数字字符串/日期转毫秒；缺失为 undefined，无时区的年月日格式按北京时间。RSSScript.timestamp(value) 返回 Result<ISO字符串|undefined>，不能混淆两者的单位和返回类型。

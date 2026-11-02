@@ -190,3 +190,30 @@ ${route_source('return new SocialFeed().run(ctx);')}`);
   assert.equal(reference.item.references[0].id, 'reply');
   assert.equal(reference.item.references[0].item, undefined);
 });
+
+test("@findrss/core 以命名导出提供基类与 Result，可与全局和 @findrss/util 共用", async () => {
+  const result = await run(`
+import { RSSScript, HotRankScript, ClipScript, DetectScript, Result } from "@findrss/core";
+import { utils } from "@findrss/util";
+class CoreFeed extends RSSScript {
+  async fetch(ctx) {
+    return Result.Ok({ title: utils.decode_html("模块 &amp; 基类"), link: "https://example.com/",
+      items: [{ id: "core", title: "核心导入", link: "https://example.com/core", published: 1700000000 }] });
+  }
+}
+class CoreRank extends HotRankScript {
+  async fetch() { return Result.Ok({ title: "热榜", link: "https://example.com/", entries: [
+    { id: "one", title: "条目", link: "https://example.com/one", rank: 1,
+      heat: { value: 10, unit: "热度", text: "10" } }] }); }
+}
+${route_source(`const feed = await new CoreFeed().run(ctx);
+  return Result.Ok({ feed: feed.data, snapshot: (await new CoreRank().run(ctx)).data,
+    same: [RSSScript === globalThis.RSSScript, HotRankScript === globalThis.HotRankScript,
+      ClipScript === globalThis.ClipScript, DetectScript === globalThis.DetectScript,
+      Result === globalThis.Result] });`)}`);
+  const value = JSON.parse(result.output);
+  assert.equal(value.feed.title, "模块 & 基类");
+  assert.deepEqual(value.feed.items.map(item => item.id), ["core"]);
+  assert.deepEqual(value.snapshot.entries.map(entry => entry.id), ["one"]);
+  assert.deepEqual(value.same, [true, true, true, true, true]);
+});
