@@ -56,13 +56,24 @@ class HttpReader {
     return line.slice(0, -2);
   }
   async headers() {
-    const headers = new Headers();
+    const pairs = [];
     for (;;) {
       const line = await this.line();
-      if (!line) return headers;
+      if (!line) {
+        const headers = new Headers();
+        for (const [name, value] of pairs) headers.append(name, value);
+        return headers;
+      }
+      // RFC 7230 已废弃 obs-fold，但七猫等 istio-envoy 上游仍在发续行；按空格展开为单个值。
+      if (/^[ \t]/.test(line)) {
+        const value = line.trim();
+        if (!pairs.length || /[\x00-\x08\x0a-\x1f\x7f]/.test(value)) throw invalid_response("响应头格式错误");
+        pairs[pairs.length - 1][1] += " " + value;
+        continue;
+      }
       const match = /^([!#$%&'*+.^_`|~0-9A-Za-z-]+):[ \t]*(.*)$/.exec(line);
       if (!match || /[\x00-\x08\x0a-\x1f\x7f]/.test(match[2])) throw invalid_response("响应头格式错误");
-      headers.append(match[1], match[2]);
+      pairs.push([match[1], match[2]]);
     }
   }
   async body(headers) {
