@@ -114,7 +114,7 @@ export class ScriptSourceStore {
       const page = await this.object_store.list({ prefix: `scripts/${script_id}/`, cursor, limit: 100 });
       let references;
       for (const object of page.objects) {
-        if (new Date(object.uploaded).getTime() >= before || (this.touched.get(object.key) || 0) >= before || (references ??= referenced()).has(object.key)) continue;
+        if (new Date(object.uploaded).getTime() >= before || (this.touched.get(object.key) || 0) >= before || (references ??= await referenced()).has(object.key)) continue;
         const cached = this.cache.get(object.key);
         if (cached !== undefined) { this.bytes -= cached.source.length * 2; this.cache.delete(object.key); }
         const pending = this.object_store.delete(object.key).finally(() => this.deleting.delete(object.key));

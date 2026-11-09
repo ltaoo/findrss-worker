@@ -644,7 +644,7 @@ test("发布强制刷新关联订阅源，旧的广场文章任务迟到也不�
   assert.equal(snapshot.error, "");
   assert.equal(JSON.parse(snapshot.articles_json)[0].title, "新版文章");
 });
-test("源码清理复用引用集合，在删除等待期间产生的新引用会重新检查", async () => {
+for (const async_references of [false, true]) test(`源码清理复用${async_references ? "异步" : "同步"}引用集合，在删除等待期间产生的新引用会重新检查`, async () => {
   let checks = 0;
   const refs = new Set(["scripts/test/retained.js"]),
     deleted = [];
@@ -666,8 +666,24 @@ test("源码清理复用引用集合，在删除等待期间产生的新引用�
   });
   await store.prune("test", () => {
     checks++;
-    return new Set(refs);
+    return async_references ? Promise.resolve(new Set(refs)) : new Set(refs);
   });
   assert.deepEqual(deleted, ["scripts/test/orphan.js"]);
   assert.equal(checks, 2);
+});
+test("异步读取源码引用失败时终止清理，不删除对象", async () => {
+  const deleted = [];
+  const store = new ScriptSourceStore({
+    available: true,
+    async list() {
+      return { truncated: false, objects: [{ key: "scripts/test/source.js", uploaded: "2000-01-01" }] };
+    },
+    async delete(key) {
+      deleted.push(key);
+    }
+  });
+  await assert.rejects(store.prune("test", async () => {
+    throw new Error("引用查询失败");
+  }), /引用查询失败/);
+  assert.deepEqual(deleted, []);
 });
