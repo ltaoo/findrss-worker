@@ -145,7 +145,7 @@ test("重新进入、翻页、修改条数和搜索后批量恢复当前页的�
       const ids = new URL(url, "https://admin").searchParams.get("source_ids").split(",");
       calls.push(ids);
       return Response.json({ tasks: ids.filter(id => ["source-1", "source-21"].includes(id))
-        .map(source_id => ({ id: "task-" + source_id, source_id, status: "running" })) });
+        .map(source_id => ({ id: "task-" + source_id, source_id, status: source_id === "source-1" ? "queued" : "running" })) });
     },
   });
   t.after(() => model.methods.destroy());
@@ -320,6 +320,83 @@ test("手动刷新保持加载状态，完成后更新当前记录的快照、�
   assert.equal(model.state.sources.value[0].next_snapshot_at, 789);
   assert.equal(model.state.sources.value[0].poll_effective.interval, 300);
   assert.equal(model.state.sources.value[1].snapshot.saved_at, 123);
+  assert.equal(model.state.snapshot_refreshing.value.length, 0);
+});
+
+test("刷新返回排队任务时保留旧快照与选择，推送完成后更新记录", async t => {
+  for (const status of [200, 202]) {
+    await t.test(String(status), async t => {
+      const timers = task_timers();
+      let task_status = "", posts = 0, reads = 0;
+      const model = modal_model(async (url, options) => {
+        if (url.endsWith("/snapshot")) {
+          posts++;
+          return Response.json({ task: { id: "task-one", source_id: "one", status: task_status } }, { status });
+        }
+        reads++;
+        const saved_at = task_status === "completed" ? 456 : 123;
+        return Response.json({ sources: [{ id: "one", title: "源", enabled: true,
+          snapshot: { saved_at, articles: [{ title: saved_at === 456 ? "新文章" : "旧文章" }], error: "" },
+          cache: { status: "fresh", saved_at }, avatar_url: "/public/avatar/one/" + saved_at,
+        }] });
+      }, { timers, background_tasks: async () => Response.json({ tasks: ["queued", "running"].includes(task_status)
+        ? [{ id: "task-one", source_id: "one", status: task_status }] : [] }) });
+      t.after(() => model.methods.destroy());
+      await model.methods.start();
+      task_status = "queued";
+      model.methods.toggle_selection("one");
+      const previous = model.state.sources.value[0];
+      assert.equal(await model.methods.refresh_snapshot("one"), true);
+      assert.equal(model.state.sources.value[0], previous);
+      assert.equal(model.state.sources.value[0].snapshot.saved_at, 123);
+      assert.equal(model.state.snapshot_errors.value.get("one"), "");
+      assert.deepEqual(Array.from(model.state.snapshot_refreshing.value), ["one"]);
+      assert.deepEqual(Array.from(model.state.selected_ids.value), ["one"]);
+      assert.equal(await model.methods.refresh_snapshot("one"), false);
+      assert.equal(posts, 1);
+      task_status = "running";
+      await timers.tick();
+      assert.deepEqual(Array.from(model.state.snapshot_refreshing.value), ["one"]);
+      const previous_reads = reads;
+      task_status = "completed";
+      await timers.tick();
+      assert.equal(reads, previous_reads + 1);
+      assert.equal(model.state.sources.value[0].snapshot.articles[0].title, "新文章");
+      assert.equal(model.state.sources.value[0].cache.saved_at, 456);
+      assert.equal(model.state.sources.value[0].avatar_url, "/public/avatar/one/456");
+      assert.equal(model.state.snapshot_refreshing.value.length, 0);
+      assert.deepEqual(Array.from(model.state.selected_ids.value), ["one"]);
+    });
+  }
+});
+
+test("刷新任务在响应返回前已完成时立即更新列表，不依赖后续推送", async () => {
+  let completed = false;
+  const model = modal_model(async url => {
+    if (url.endsWith("/snapshot")) {
+      completed = true;
+      return Response.json({ task: { id: "task-one", source_id: "one", status: "queued" } });
+    }
+    return Response.json({ sources: [{ id: "one", snapshot: {
+      saved_at: completed ? 456 : 123, articles: [], error: "",
+    } }] });
+  });
+  await model.methods.refresh_list();
+  assert.equal(await model.methods.refresh_snapshot("one"), true);
+  assert.equal(model.state.sources.value[0].snapshot.saved_at, 456);
+  assert.equal(model.state.snapshot_refreshing.value.length, 0);
+  assert.equal(model.state.snapshot_errors.value.get("one"), "");
+});
+
+test("刷新响应缺少快照和任务时保留旧数据并提示错误", async () => {
+  const model = modal_model(async url => Response.json(url.endsWith("/snapshot") ? {} : {
+    sources: [{ id: "one", snapshot: { saved_at: 123, articles: [], error: "" } }],
+  }));
+  await model.methods.refresh_list();
+  const previous = model.state.sources.value[0];
+  assert.equal(await model.methods.refresh_snapshot("one"), false);
+  assert.equal(model.state.sources.value[0], previous);
+  assert.equal(model.state.snapshot_errors.value.get("one"), "快照刷新响应缺少快照或任务信息");
   assert.equal(model.state.snapshot_refreshing.value.length, 0);
 });
 

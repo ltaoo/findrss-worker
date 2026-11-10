@@ -293,7 +293,7 @@ function DiscoveryAdminViewModel() {
       task_error = "";
       const visible_ids = new Set(source_ids);
       const running = new Set((payload.tasks || [])
-        .filter(task => task.status === "running" && visible_ids.has(task.source_id))
+        .filter(task => ["queued", "running"].includes(task.status) && visible_ids.has(task.source_id))
         .map(task => task.source_id));
       const completed = [...background_refreshing].some(id => visible_ids.has(id) && !running.has(id));
       background_refreshing = running;
@@ -773,6 +773,12 @@ function DiscoveryAdminViewModel() {
             "/snapshot",
           { method: "POST" },
         );
+        if (!result.snapshot) {
+          if (!result.task) throw new Error("快照刷新响应缺少快照或任务信息");
+          background_refreshing.add(source_id);
+          await load_background_tasks({ reload_completed: true });
+          return true;
+        }
         if (selected_ids_.value.includes(source_id)) selected_sources.set(source_id, { ...source,
           snapshot: result.snapshot, cache: result.cache || source.cache,
           ...(result.avatar_url === undefined ? {} : { avatar_url: result.avatar_url }) });
